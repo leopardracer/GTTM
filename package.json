@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.json && node --test dist/core/*.test.js",
     "dev": "tsc -p tsconfig.json && node bin/gttm.js"
   },
   "dependencies": {

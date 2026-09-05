@@ -1,5 +1,10 @@
+# GTTM
+
+### six agents. one human. one mission.
+
 ![GROK TO THE MOON](assets/banner.jpg)
 
+[![CI](https://github.com/leopardracer/GTTM/actions/workflows/ci.yml/badge.svg)](https://github.com/leopardracer/GTTM/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-FF3EA5?style=flat-square)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-39FF14?style=flat-square&logo=node.js&logoColor=black)](package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-00BFFF?style=flat-square&logo=typescript&logoColor=white)](tsconfig.json)
@@ -47,7 +52,7 @@ record; see [Known limitations](#known-limitations) for when it isn't.)*
 
 ## Agent architecture
 
-| Agent  | Role                    | v0.1 status |
+| Agent  | Role                    | Status |
 | ------ | ----------------------- | ----------- |
 | SCOUT  | chain intelligence      | real — liquidity, holder activity, buy/sell ratio, deterministic verdict |
 | ABACUS | treasury + economics    | real — reads the public buyback wallet's transfers |
@@ -245,6 +250,11 @@ without a rewrite:
 Issues and PRs welcome. Keep changes small, keep the CLI output honest — if a
 number can't be verified from the chain (or another cited source), it should
 say `DATA UNAVAILABLE`, not a plausible-looking guess.
+
+Run `npm test` before opening a PR (builds with `tsc`, then runs the test
+suite on Node's built-in test runner — no extra test framework dependency).
+CI runs the same build + test + demo-mode smoke test on every push, on
+Node 20.x and 22.x.
 
 ## License
 

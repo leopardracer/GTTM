@@ -1,0 +1,30 @@
+{
+  "name": "gttm",
+  "version": "0.1.0",
+  "description": "the open-source mission terminal for Grok To The Moon ($GTTM). six agents. one human. one mission. read-only, no keys, no trading.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "gttm": "./bin/gttm.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json && node bin/gttm.js"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.5",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
+    "ora": "^8.1.0",
+    "viem": "^2.21.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.5.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

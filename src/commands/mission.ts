@@ -3,6 +3,7 @@ import { readTokenInfo } from "../chain/token.js";
 import { readLiquidity } from "../chain/liquidity.js";
 import { readHolderStats } from "../chain/holders.js";
 import { readActivityStats } from "../chain/transactions.js";
+import { evaluateRoadmap } from "../core/roadmap.js";
 import { fmtUsd, fmtToken, fmtNum, DATA_UNAVAILABLE } from "../core/format.js";
 import { header, demoBanner, label, dim } from "../ui/terminal.js";
 import { progressBar } from "../ui/progress.js";
@@ -31,6 +32,20 @@ export async function runMission() {
     console.log(label("LIQUIDITY", fmtUsd(demoSnapshot.liquidityUsd) + " (demo)"));
     console.log(label("HOLDERS", fmtNum(demoSnapshot.holders) + " (demo)"));
     console.log(label("VOLUME 24H", fmtUsd(demoSnapshot.volume24hUsd) + " (demo)"));
+
+    const evalDemo = evaluateRoadmap(demoSnapshot.marketCapUsd);
+    console.log();
+    console.log(dim(`NEXT OBJECTIVE (demo)`));
+    console.log(
+      evalDemo.nextMilestone
+        ? `$${evalDemo.nextMilestone.thresholdUsd.toLocaleString("en-US")} MARKET CAP (PHASE ${evalDemo.nextMilestone.phase.id}: ${evalDemo.nextMilestone.phase.name})`
+        : "no further numeric milestone"
+    );
+    console.log();
+    console.log(dim("DISTANCE TO OBJECTIVE"));
+    if (evalDemo.nextMilestone) {
+      console.log(progressBar((demoSnapshot.marketCapUsd / evalDemo.nextMilestone.thresholdUsd) * 100) + " (demo)");
+    }
   } else {
     const [token, liquidity, holders, activity] = await Promise.all([
       readTokenInfo(),
@@ -38,11 +53,6 @@ export async function runMission() {
       readHolderStats(),
       readActivityStats(),
     ]);
-
-    const marketCapUsd =
-      token.totalSupply && liquidity.priceInPair !== null && liquidity.liquidityUsd !== null && liquidity.liquidityPairAsset
-        ? null // computed below once we have a real pair-asset USD price already folded into liquidityUsd
-        : null;
 
     // Market cap needs: totalSupply (token units) * priceInPair * usdPrice.
     // We already have liquidityUsd computed from usdPrice inside readLiquidity;
@@ -71,13 +81,22 @@ export async function runMission() {
       )
     );
 
+    const evaluation = evaluateRoadmap(marketCap);
+    console.log();
+    console.log(label("PHASE", `${evaluation.currentPhase.id} — ${evaluation.currentPhase.name}`));
     console.log();
     console.log(dim("NEXT OBJECTIVE"));
-    console.log(`$${config.nextMilestoneUsd.toLocaleString("en-US")} MARKET CAP`);
+    console.log(
+      evaluation.nextMilestone
+        ? `$${evaluation.nextMilestone.thresholdUsd.toLocaleString("en-US")} MARKET CAP (PHASE ${evaluation.nextMilestone.phase.id}: ${evaluation.nextMilestone.phase.name})`
+        : "no further numeric milestone in the roadmap — see `gttm moon`"
+    );
     console.log();
     console.log(dim("DISTANCE TO OBJECTIVE"));
-    if (marketCap !== null) {
-      console.log(progressBar((marketCap / config.nextMilestoneUsd) * 100));
+    if (!evaluation.nextMilestone) {
+      console.log(dim("n/a — $2M already reached"));
+    } else if (marketCap !== null) {
+      console.log(progressBar((marketCap / evaluation.nextMilestone.thresholdUsd) * 100));
     } else {
       console.log(DATA_UNAVAILABLE + " — market cap could not be computed (missing pool, supply, or price feed)");
     }

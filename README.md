@@ -66,6 +66,29 @@ Three agents are real chain-read functions with a crew-flavored name. Three
 are honestly-labeled placeholders reserved for later. `gttm crew <name>` says
 which is which — it doesn't pretend a placeholder has output it doesn't.
 
+## Mission roadmap ($GTTM phases)
+
+`gttm moon` tracks the actual 6-phase roadmap from
+[groktothemoon.foundation](https://www.groktothemoon.foundation), not a
+generic single milestone. Two of the six phases have a real number attached
+(Phase 4: $1M market cap, Phase 5: $2M) — those are computed from a live
+market cap when one's available. The other four (launch complete, community
+push, the buyback wallet, and "find a bigger moon") have no on-chain number
+to check, so their status is the project's own stated claim, labeled
+`(declared)` rather than presented as chain-verified — see `src/core/roadmap.ts`.
+
+```
+$ gttm moon
+
+ROADMAP
+[x] PHASE 1  LIFT OFF                 DONE (declared)
+[~] PHASE 2  MAKE NOISE               RUNNING (declared)
+[~] PHASE 3  EVERY FEE GOES BACK IN   RUNNING (declared)
+[ ] PHASE 4  THE EXCHANGE CALLS       $1,000,000 MCAP
+[ ] PHASE 5  GET LISTED               $2,000,000 MCAP
+[ ] PHASE 6  YOU KNOW THIS PART       PENDING
+```
+
 ## Pons V2 integration
 
 $GTTM launches through [Pons](https://www.ponsfamily.com/launchpad), Robinhood
@@ -142,7 +165,6 @@ cp .env.example .env
 | `GTTM_CONTRACT_ADDRESS`    | yes | leave empty to stay in demo mode |
 | `POOL_ADDRESS`             | no | reserved for a future post-graduation v4 reader — not used pre-graduation, that's auto-discovered (see [Pons V2 integration](#pons-v2-integration)) |
 | `BUYBACK_WALLET`           | for `treasury` | the public wallet from roadmap Phase 3 |
-| `NEXT_MILESTONE_USD`       | no | your own target, not fetched data |
 | `PAIR_ASSET_COINGECKO_ID`  | no | for USD conversion; degrades to `DATA UNAVAILABLE` if unset or unreachable |
 
 No private key is ever requested, read, or stored anywhere in this codebase.
@@ -211,7 +233,7 @@ Stated plainly instead of hidden:
   output says so.
 - **DOOR and EARS are still placeholders.** Deployer-history lookups (DOOR)
   and social-sentiment data (EARS) aren't implemented — see
-  [Roadmap](#roadmap).
+  [Development roadmap](#development-roadmap).
 - **USD figures depend on an external price feed** (CoinGecko, no API key).
   If it's unreachable, USD numbers show `DATA UNAVAILABLE` and pair-asset
   (ETH) figures are shown instead — nothing is estimated silently.
@@ -228,9 +250,9 @@ Stated plainly instead of hidden:
 - `doctor` never lets a raw stack trace reach the terminal; every failure
   path returns a human-readable reason.
 
-## Roadmap
+## Development roadmap
 
-Not implemented yet, deliberately out of scope for v0.1, but the module
+Not implemented yet, deliberately out of scope for v0.1/v0.2, but the module
 boundaries (`agents/`, `core/signals.ts`) are shaped so these can slot in
 without a rewrite:
 

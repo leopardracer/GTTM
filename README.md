@@ -2,6 +2,15 @@
 
 ### six agents. one human. one mission.
 
+![GROK TO THE MOON](assets/banner.jpg)
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-D9D9D9?style=flat-square)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-6EE7A8?style=flat-square&logo=node.js&logoColor=white)](package.json)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat-square&logo=typescript&logoColor=white)](tsconfig.json)
+[![Chain](https://img.shields.io/badge/chain-4663-1a1a1a?style=flat-square)](https://docs.robinhood.com/chain/)
+[![Read only](https://img.shields.io/badge/mode-read--only-F1FA8C?style=flat-square)](#safety)
+[![No private keys](https://img.shields.io/badge/private%20keys-never-FF5555?style=flat-square)](#safety)
+
 GTTM is a terminal you run to check on $GTTM on Robinhood Chain — a mission
 control for six themed agents (SCOUT, MOUTH, DOOR, WRENCH, ABACUS, EARS) plus
 HUMAN, the final authority. Under the hood it's a small read-only CLI: no
@@ -14,37 +23,7 @@ v0.1 is a single-shot and polling terminal, not an autonomous system. The
 functions, dressed as a crew — see [Signal engine](#signal-engine) below for
 exactly what that means and doesn't mean.
 
-```
-$ gttm mission
-
-GROK TO THE MOON
-──────────────────────────────────────
-
-MISSION         IN PROGRESS
-CHAIN           Robinhood Chain
-TOKEN           $GTTM
-
-MARKET CAP      $184,200
-LIQUIDITY       $41,900
-HOLDERS*        212
-VOLUME 24H      2.31 ETH
-
-NEXT OBJECTIVE
-$1,000,000 MARKET CAP
-
-DISTANCE TO OBJECTIVE
-███░░░░░░░░░░░░░░░░░ 18.4%
-
-CREW
-● SCOUT    ACTIVE
-● MOUTH    ACTIVE
-● DOOR     ACTIVE
-● WRENCH   ACTIVE
-● ABACUS   ACTIVE
-● EARS     ACTIVE
-
-HUMAN     ONLINE
-```
+![gttm mission](assets/screenshots/mission.png)
 
 *(HOLDERS is windowed activity, not a lifetime count — see [Known
 limitations](#known-limitations).)*
@@ -82,6 +61,8 @@ are honestly-labeled placeholders reserved for later. `gttm crew <name>` says
 which is which — it doesn't pretend a placeholder has output it doesn't.
 
 ## Signal engine
+
+![gttm scout](assets/screenshots/scout.png)
 
 SCOUT's verdict (BULLISH / WATCH / BEARISH) comes from a small set of
 explicit rules, not a model:
@@ -124,6 +105,8 @@ cp .env.example .env
 No private key is ever requested, read, or stored anywhere in this codebase.
 
 ## Usage
+
+![gttm crew](assets/screenshots/crew.png)
 
 ```bash
 gttm mission
@@ -178,6 +161,8 @@ Stated plainly instead of hidden:
   (ETH) figures are shown instead — nothing is estimated silently.
 
 ## Safety
+
+![gttm doctor](assets/screenshots/doctor.png)
 
 - Read-only. No wallet signing, no automated transactions, no ability to
   move funds — v0.1 doesn't have a code path that could.

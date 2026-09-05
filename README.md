@@ -12,22 +12,110 @@
 [![Read only](https://img.shields.io/badge/mode-read--only-FFEA00?style=flat-square)](#safety)
 [![No private keys](https://img.shields.io/badge/private%20keys-never-FF073A?style=flat-square)](#safety)
 
-GTTM is a terminal you run to check on $GTTM on Robinhood Chain — a mission
-control for six themed agents (SCOUT, MOUTH, DOOR, WRENCH, ABACUS, EARS) plus
-HUMAN, the final authority. Under the hood it's a small read-only CLI: no
-private keys, no signing, no trading. Every number it shows is either a real
-chain read or explicitly labeled as unavailable — nothing here is invented to
-look impressive.
+# GTTM
+
+### a Robinhood Chain sniper cockpit.
+
+![GROK TO THE MOON](assets/banner.jpg)
+
+[![CI](https://github.com/leopardracer/GTTM/actions/workflows/ci.yml/badge.svg)](https://github.com/leopardracer/GTTM/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-FF3EA5?style=flat-square)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-39FF14?style=flat-square&logo=node.js&logoColor=black)](package.json)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-00BFFF?style=flat-square&logo=typescript&logoColor=white)](tsconfig.json)
+[![Chain](https://img.shields.io/badge/chain-4663-BF00FF?style=flat-square)](https://docs.robinhood.com/chain/)
+[![Read only](https://img.shields.io/badge/mode-read--only-FFEA00?style=flat-square)](#safety)
+[![No private keys](https://img.shields.io/badge/private%20keys-never-FF073A?style=flat-square)](#safety)
+
+```
+Robinhood Chain
+      ↓
+SNIPER ENGINE     — detects new Pons V2 launches, scores them by rule
+      ↓
+signals / events / opportunities
+      ↓
+GTTM COCKPIT      — the terminal you actually look at
+      ↓
+HUMAN             — decides. execution stays disabled in v0.3.
+```
+
+`gttm hunt` watches the Pons V2 factory on Robinhood Chain for every new
+token launch, scores each one against a small set of explicit, readable
+rules (dev buy size, declared tax-exempt wallets, serial deployers), and
+shows you the result. It's read-only end to end — no private key, no
+signing, no automated trade — a cockpit for a human to make the call, not a
+bot that trades for you.
+
+![gttm hunt](assets/screenshots/hunt.png)
+
+GTTM also ships a secondary feature: a dashboard for the project's own
+$GTTM token specifically (`mission`, `scout`, `scan`, `treasury`, `moon`,
+`crew`) — see [$GTTM token dashboard](#gttm-token-dashboard) further down.
+That's the part that used to be framed as "six AI agents"; it's still here
+and still real, just not the headline anymore.
+
+## Sniper engine
+
+`gttm hunt` is the core loop:
+
+1. **Detect** — scan the Pons V2 factory (`0x7ed598bc...`) for `TokenLaunched`
+   events in a recent block window. No token filter — this is every launch
+   on the chain, not just $GTTM's own.
+2. **Enrich** — for each launch, read the dev's own first buy on that
+   token's bonding curve (size, effective tax), how many wallets were
+   declared exempt from the opening snipe tax, and how many other launches
+   the same deployer made in the same window (all from data already fetched
+   — no extra indexer).
+3. **Score** — a small, explicit rule set (not a model — see below) turns
+   that into a 0-100 score and a `FIRE` / `WATCH` / `PASS` verdict with the
+   reasons spelled out.
+4. **Decide** — that's the human's job. v0.3 has no execution path at all;
+   see [Safety](#safety).
+
+### Scoring rules
+
+`core/huntScore.ts` is the whole model — read it, it's short:
+
+| Signal | What it means | Effect |
+| --- | --- | --- |
+| Dev buy > 5% of curve-sold supply | Deployer took a large slice of the tradeable supply for themselves | red flag |
+| Dev buy 1-5% | Moderate — worth noting, not alarming | minor flag |
+| Any wallets declared exempt from opening tax | A "bundle" — insiders got in before the snipe-tax window applied to them | red flag, scales with count |
+| Same deployer launched >1 token in the window | Mass-launching pattern, often low-effort | red flag, scales with count |
+| Dev's own buy paid less tax than the opening rate | Dev may have self-exempted | flag |
+
+No signal here predicts price or claims to know anything about the future —
+they flag patterns worth a human's attention, same philosophy as
+[Signal engine](#signal-engine) below.
+
+### Known limitations (sniper engine)
+
+- **One RPC round-trip per detected launch** to fetch its dev-buy and
+  exempt-wallet events. Fine for a normal launch window; on a very busy
+  window with a slow public RPC, `hunt` will be slow — a batched multicall
+  is the obvious next optimization, not yet done.
+- **No execution.** `hunt` only detects and scores. There's no code path in
+  this repo that buys anything — see [Safety](#safety).
+- **No live polling feed yet.** `hunt` is a one-shot scan of the recent
+  window (`SIGNAL_WINDOW_BLOCKS`), same as `scan`, not a continuous stream
+  like `watch`. A `--follow` mode is the natural next step.
+
+## $GTTM token dashboard
+
+The rest of this README (below) describes the token-specific dashboard:
+`mission`, `crew`, `scout`, `scan`, `treasury`, `moon`, `watch`, `doctor`.
+This is $GTTM checking on itself, not the sniper engine — it needs
+`GTTM_CONTRACT_ADDRESS` configured, while `hunt` only needs `RPC_URL`.
 
 v0.1 is a single-shot and polling terminal, not an autonomous system. The
 "agents" are a deterministic rule engine and a set of named chain-read
 functions, dressed as a crew — see [Signal engine](#signal-engine) below for
 exactly what that means and doesn't mean.
 
-**v0.2** wires SCOUT and ABACUS directly into the real Pons V2 launchpad
+**v0.2** wired SCOUT and ABACUS directly into the real Pons V2 launchpad
 contracts on Robinhood Chain (factory, per-token bonding curve) — see [Pons
 V2 integration](#pons-v2-integration) for what that closes and what it
-doesn't.
+doesn't. **v0.3** reuses that same integration, pointed at the whole chain
+instead of one token, to build the sniper engine above.
 
 ![gttm mission](assets/screenshots/mission.png)
 
@@ -36,15 +124,17 @@ record; see [Known limitations](#known-limitations) for when it isn't.)*
 
 ## Features
 
-- `gttm mission` — mission-control overview: market cap, liquidity, holders,
-  volume, crew status, progress toward the next milestone.
-- `gttm crew [agent]` — the crew roster, or one agent's own readout.
-- `gttm scout` — SCOUT's chain-intelligence report with a deterministic
-  verdict and confidence score.
-- `gttm watch` — a live polling feed of transfers and swaps.
-- `gttm scan` — a broader one-shot scan of the configured contract.
-- `gttm treasury` — ABACUS's view of the public buyback wallet.
-- `gttm moon` — progress toward the next market-cap milestone.
+- `gttm hunt` — **the sniper cockpit.** Every new Pons V2 launch on the
+  chain, scored. See [Sniper engine](#sniper-engine).
+- `gttm mission` — $GTTM's own mission-control overview: market cap,
+  liquidity, holders, volume, crew status, roadmap phase.
+- `gttm crew [agent]` — the $GTTM crew roster, or one agent's own readout.
+- `gttm scout` — SCOUT's chain-intelligence report on $GTTM with a
+  deterministic verdict and confidence score.
+- `gttm watch` — a live polling feed of $GTTM transfers and curve trades.
+- `gttm scan` — a broader one-shot scan of the configured $GTTM contract.
+- `gttm treasury` — ABACUS's view of $GTTM's public buyback wallet.
+- `gttm moon` — $GTTM's progress on its own 6-phase roadmap.
 - `gttm doctor` — diagnostics: Node version, config, RPC, chain, contract,
   token metadata. Never crashes with a raw stack trace.
 - **Demo mode** — with no contract configured, every command runs on
@@ -161,8 +251,8 @@ cp .env.example .env
 
 | Variable                   | Required for live mode | Notes |
 | --------------------------- | :---------------------: | ----- |
-| `RPC_URL`                  | yes | from your own provider — see `docs.robinhood.com/chain` |
-| `GTTM_CONTRACT_ADDRESS`    | yes | leave empty to stay in demo mode |
+| `RPC_URL`                  | yes (all live commands) | from your own provider — see `docs.robinhood.com/chain`. This alone is enough for `gttm hunt`. |
+| `GTTM_CONTRACT_ADDRESS`    | for the [token dashboard](#gttm-token-dashboard) only | not needed for `hunt` — leave empty and `hunt` still runs live off `RPC_URL` alone; the token-dashboard commands fall back to demo mode without it |
 | `POOL_ADDRESS`             | no | reserved for a future post-graduation v4 reader — not used pre-graduation, that's auto-discovered (see [Pons V2 integration](#pons-v2-integration)) |
 | `BUYBACK_WALLET`           | for `treasury` | the public wallet from roadmap Phase 3 |
 | `PAIR_ASSET_COINGECKO_ID`  | no | for USD conversion; degrades to `DATA UNAVAILABLE` if unset or unreachable |
@@ -174,6 +264,7 @@ No private key is ever requested, read, or stored anywhere in this codebase.
 ![gttm crew](assets/screenshots/crew.png)
 
 ```bash
+gttm hunt
 gttm mission
 gttm crew
 gttm crew scout
@@ -192,16 +283,21 @@ gttm --version
 ```
 src/
   cli.ts              entry point (commander)
-  commands/            one file per CLI command
-  agents/              crew readouts — real for scout/abacus/wrench,
+  commands/            one file per CLI command (hunt.ts is the sniper cockpit)
+  agents/              $GTTM crew readouts — real for scout/abacus/wrench,
                         honest placeholders for mouth/door/ears
   chain/               viem client, token reads, and Pons V2 integration
     pons.ts             real Pons V2 addresses + event ABIs (sourced, not guessed)
-    launch.ts           per-token launch record + bonding-curve state
+    hunt.ts             sniper engine: scans ALL launches on the factory
+    launch.ts           per-token launch record + bonding-curve state ($GTTM dashboard)
     liquidity.ts        price/liquidity — curve pre-graduation, gap post-graduation
     holders.ts          real lifetime holder count from the launch block
     transactions.ts     buy/sell activity from curve events + buyback tracking
-  core/                config, signal engine, formatting, demo data, state cache
+  core/
+    huntScore.ts         the sniper engine's whole scoring model — read it, it's short
+    signals.ts           $GTTM dashboard's deterministic verdict engine
+    roadmap.ts           $GTTM's 6-phase roadmap tracker
+    config.ts, format.ts, demo.ts, state.ts, price-feed.ts
   ui/                  terminal chrome, tables, progress bars
 ```
 
@@ -242,9 +338,12 @@ Stated plainly instead of hidden:
 
 ![gttm doctor](assets/screenshots/doctor.png)
 
-- Read-only. No wallet signing, no automated transactions, no ability to
-  move funds — v0.1 doesn't have a code path that could.
-- No private key is ever requested or stored.
+- Read-only, including `hunt`. No wallet signing, no automated transactions,
+  no ability to move funds — there is no code path in this repo that
+  submits a transaction. Detection and scoring only.
+- No private key is ever requested or stored, anywhere, including for the
+  sniper engine — a future execution mode (see [Sniper
+  engine](#sniper-engine)) would need one, and doesn't exist yet.
 - Demo mode is unmistakable: a `DEMO MODE` banner on every command, and every
   demo number is a round, clearly-fake figure.
 - `doctor` never lets a raw stack trace reach the terminal; every failure

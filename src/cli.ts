@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { runHunt } from "./commands/hunt.js";
 import { runMission } from "./commands/mission.js";
 import { runCrew } from "./commands/crew.js";
 import { runScout } from "./commands/scout.js";
@@ -13,21 +14,23 @@ const program = new Command();
 
 program
   .name("gttm")
-  .description("six agents. one human. one mission. the open-source mission terminal for $GTTM.")
-  .version("0.2.0");
+  .description("a Robinhood Chain sniper cockpit. detect new launches, score them, decide — read only.")
+  .version("0.3.0");
 
-program.command("mission").description("mission control overview").action(runMission);
+program.command("hunt").description("live feed of every new Pons V2 launch on the chain, scored").action(runHunt);
+
+program.command("mission").description("$GTTM token dashboard — mission control overview").action(runMission);
 
 program
   .command("crew [agent]")
-  .description("show the crew, or one agent's readout (scout, mouth, door, wrench, abacus, ears)")
+  .description("show the $GTTM crew, or one agent's readout (scout, mouth, door, wrench, abacus, ears)")
   .action(runCrew);
 
-program.command("scout").description("SCOUT's chain intelligence report").action(runScout);
-program.command("watch").description("live feed of chain activity").action(runWatch);
-program.command("scan").description("broader intelligence scan of the configured contract").action(runScan);
-program.command("treasury").description("ABACUS treasury / economics overview").action(runTreasury);
-program.command("moon").description("mission progress toward the next milestone").action(runMoon);
+program.command("scout").description("SCOUT's chain intelligence report on $GTTM").action(runScout);
+program.command("watch").description("live feed of $GTTM chain activity").action(runWatch);
+program.command("scan").description("broader intelligence scan of the configured $GTTM contract").action(runScan);
+program.command("treasury").description("ABACUS treasury / economics overview for $GTTM").action(runTreasury);
+program.command("moon").description("$GTTM's progress on its own roadmap").action(runMoon);
 program.command("doctor").description("diagnostics — config, RPC, chain, contract").action(runDoctor);
 
 program.parseAsync(process.argv).catch((err: any) => {

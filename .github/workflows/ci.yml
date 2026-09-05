@@ -33,7 +33,7 @@ jobs:
       - name: Demo-mode smoke test
         run: |
           set -e
-          for cmd in mission crew scout scan treasury moon doctor; do
+          for cmd in hunt mission crew scout scan treasury moon doctor; do
             echo "== gttm $cmd =="
             node bin/gttm.js "$cmd"
           done

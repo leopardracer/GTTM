@@ -1,6 +1,6 @@
 # GTTM
 
-### a Robinhood Chain sniper cockpit.
+### mission control for Robinhood Chain.
 
 ![GROK TO THE MOON](assets/banner.jpg)
 
@@ -12,24 +12,45 @@
 [![Read only](https://img.shields.io/badge/mode-read--only-FFEA00?style=flat-square)](#safety)
 [![No private keys](https://img.shields.io/badge/private%20keys-never-FF073A?style=flat-square)](#safety)
 
+GTTM is a mission-control cockpit for discovering and evaluating new
+opportunities on Robinhood Chain. Sniping a fresh Pons V2 launch is the
+primary use case today, but GTTM itself is the intelligence-and-interface
+layer — not an automated trading bot. It detects, scores, and shows you the
+reasons; deciding (and, later, executing) stays a human action.
+
 ```
+CURRENT — IMPLEMENTED
+──────────────────────────────────
 Robinhood Chain
       ↓
-SNIPER ENGINE     — detects new Pons V2 launches, scores them by rule
+Pons V2
       ↓
-signals / events / opportunities
+GTTM Intelligence
       ↓
-GTTM COCKPIT      — the terminal you actually look at
+Launch Detection
       ↓
-HUMAN             — decides. execution stays disabled in v0.3.
+On-chain Analysis     (dev buy size, tax-exempt wallets, deployer pattern)
+      ↓
+Signal / Score
+      ↓
+GTTM Cockpit
+      ↓
+Human Decision
+      ↓
+optional Snipe        (not implemented — no execution path exists in v0.3)
+
+NEXT — PLANNED, NOT BUILT YET
+──────────────────────────────────
+Wallet Intelligence   (deployer history beyond a single window — see DOOR)
+Market Intelligence   (cross-token market data, beyond $GTTM's own dashboard)
 ```
 
-`gttm hunt` watches the Pons V2 factory on Robinhood Chain for every new
-token launch, scores each one against a small set of explicit, readable
-rules (dev buy size, declared tax-exempt wallets, serial deployers), and
-shows you the result. It's read-only end to end — no private key, no
-signing, no automated trade — a cockpit for a human to make the call, not a
-bot that trades for you.
+`gttm hunt` is what runs the "CURRENT" column above today: it watches the
+Pons V2 factory on Robinhood Chain for every new token launch, scores each
+one against a small set of explicit, readable rules (dev buy size, declared
+tax-exempt wallets, serial deployers), and shows you the result. It's
+read-only end to end — no private key, no signing, no automated trade — a
+cockpit for a human to make the call, not a bot that trades for you.
 
 ![gttm hunt](assets/screenshots/hunt.png)
 
@@ -344,9 +365,12 @@ without a rewrite:
 - Real LLM-powered agents behind the same crew interface
 - A social-sentiment source for EARS
 - Automated content generation for MOUTH
-- Deployer-history lookups for DOOR (how many prior launches an address has,
-  how many graduated) — the deployer's *address* is already real as of
-  v0.2, see [Pons V2 integration](#pons-v2-integration); the history isn't
+- **Wallet Intelligence** — deployer-history lookups for DOOR (how many prior
+  launches an address has, how many graduated) — the deployer's *address*
+  is already real as of v0.2, see [Pons V2 integration](#pons-v2-integration);
+  the history isn't
+- **Market Intelligence** — cross-token market data beyond $GTTM's own
+  dashboard (volume/liquidity comparisons across launches, not just one token)
 - Post-graduation v4 pool pricing (see [Known limitations](#known-limitations))
 - Telegram/Discord and X monitoring integrations
 - Agent-to-agent communication and a human-approval queue

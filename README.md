@@ -1,7 +1,3 @@
-# GTTM
-
-### six agents. one human. one mission.
-
 ![GROK TO THE MOON](assets/banner.jpg)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-FF3EA5?style=flat-square)](LICENSE)

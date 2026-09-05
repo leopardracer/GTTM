@@ -4,12 +4,12 @@
 
 ![GROK TO THE MOON](assets/banner.jpg)
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-D9D9D9?style=flat-square)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D20-6EE7A8?style=flat-square&logo=node.js&logoColor=white)](package.json)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat-square&logo=typescript&logoColor=white)](tsconfig.json)
-[![Chain](https://img.shields.io/badge/chain-4663-1a1a1a?style=flat-square)](https://docs.robinhood.com/chain/)
-[![Read only](https://img.shields.io/badge/mode-read--only-F1FA8C?style=flat-square)](#safety)
-[![No private keys](https://img.shields.io/badge/private%20keys-never-FF5555?style=flat-square)](#safety)
+[![License: MIT](https://img.shields.io/badge/license-MIT-FF3EA5?style=flat-square)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-39FF14?style=flat-square&logo=node.js&logoColor=black)](package.json)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-00BFFF?style=flat-square&logo=typescript&logoColor=white)](tsconfig.json)
+[![Chain](https://img.shields.io/badge/chain-4663-BF00FF?style=flat-square)](https://docs.robinhood.com/chain/)
+[![Read only](https://img.shields.io/badge/mode-read--only-FFEA00?style=flat-square)](#safety)
+[![No private keys](https://img.shields.io/badge/private%20keys-never-FF073A?style=flat-square)](#safety)
 
 GTTM is a terminal you run to check on $GTTM on Robinhood Chain — a mission
 control for six themed agents (SCOUT, MOUTH, DOOR, WRENCH, ABACUS, EARS) plus

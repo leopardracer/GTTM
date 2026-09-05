@@ -1,19 +1,5 @@
 # GTTM
 
-### six agents. one human. one mission.
-
-![GROK TO THE MOON](assets/banner.jpg)
-
-[![CI](https://github.com/leopardracer/GTTM/actions/workflows/ci.yml/badge.svg)](https://github.com/leopardracer/GTTM/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-FF3EA5?style=flat-square)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D20-39FF14?style=flat-square&logo=node.js&logoColor=black)](package.json)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-00BFFF?style=flat-square&logo=typescript&logoColor=white)](tsconfig.json)
-[![Chain](https://img.shields.io/badge/chain-4663-BF00FF?style=flat-square)](https://docs.robinhood.com/chain/)
-[![Read only](https://img.shields.io/badge/mode-read--only-FFEA00?style=flat-square)](#safety)
-[![No private keys](https://img.shields.io/badge/private%20keys-never-FF073A?style=flat-square)](#safety)
-
-# GTTM
-
 ### a Robinhood Chain sniper cockpit.
 
 ![GROK TO THE MOON](assets/banner.jpg)

@@ -2,7 +2,8 @@ import { formatUnits } from "viem";
 import { config } from "../core/config.js";
 import { getClient } from "../chain/client.js";
 import { erc20Abi } from "../chain/token.js";
-import { genericPoolAbi } from "../chain/liquidity.js";
+import { curveAbi } from "../chain/pons.js";
+import { readLaunchRecord } from "../chain/launch.js";
 import { header, dim, demoBanner } from "../ui/terminal.js";
 import { demoSnapshot } from "../core/demo.js";
 
@@ -32,8 +33,15 @@ export async function runWatch() {
 
   const client = getClient();
   const token = config.requireTokenAddress();
-  const pool = config.poolAddress;
   const decimals = config.tokenDecimals;
+
+  const launch = await readLaunchRecord(token);
+  if (!launch.found) {
+    console.log(dim(launch.reason));
+    console.log(dim("watching transfers only — no Pons curve found for this address."));
+  } else {
+    console.log(dim(`curve: ${launch.curve}`));
+  }
 
   let lastBlock = await client.getBlockNumber();
   console.log(dim(`watching from block #${lastBlock}. Ctrl+C to exit.`));
@@ -71,15 +79,22 @@ export async function runWatch() {
         console.log(`${timeNow()}  ${"TRANSFER".padEnd(10)} ${Number(formatUnits(value, decimals)).toFixed(2)} $GTTM`);
       }
 
-      if (pool) {
-        const swapLogs = await client.getLogs({
-          address: pool,
-          event: genericPoolAbi[3],
-          fromBlock,
-          toBlock: latest,
-        });
-        for (const log of swapLogs) {
-          console.log(`${timeNow()}  ${"SWAP".padEnd(10)} block #${log.blockNumber}`);
+      if (launch.found) {
+        const [buyLogs, sellLogs] = await Promise.all([
+          client.getLogs({ address: launch.curve, event: curveAbi[0], fromBlock, toBlock: latest }),
+          client.getLogs({ address: launch.curve, event: curveAbi[1], fromBlock, toBlock: latest }),
+        ]);
+        for (const log of buyLogs) {
+          const a = log.args as any;
+          console.log(
+            `${timeNow()}  ${"BUY".padEnd(10)} ${formatUnits(a.quoteIn, 18)} ETH -> ${Number(formatUnits(a.tokensOut, decimals)).toFixed(0)} $GTTM`
+          );
+        }
+        for (const log of sellLogs) {
+          const a = log.args as any;
+          console.log(
+            `${timeNow()}  ${"SELL".padEnd(10)} ${Number(formatUnits(a.tokensIn, decimals)).toFixed(0)} $GTTM -> ${formatUnits(a.quoteOut, 18)} ETH`
+          );
         }
       }
     } catch (e: any) {

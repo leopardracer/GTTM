@@ -1,6 +1,6 @@
 {
   "name": "gttm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "the open-source mission terminal for Grok To The Moon ($GTTM). six agents. one human. one mission. read-only, no keys, no trading.",
   "type": "module",
   "license": "MIT",

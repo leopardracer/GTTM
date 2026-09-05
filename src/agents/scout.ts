@@ -4,7 +4,7 @@ import { readHolderStats } from "../chain/holders.js";
 import { readActivityStats } from "../chain/transactions.js";
 import { computeSignals } from "../core/signals.js";
 import { readLastSnapshot, writeSnapshot } from "../core/state.js";
-import { fmtToken, fmtNum, fmtPercent } from "../core/format.js";
+import { fmtToken, fmtNum, DATA_UNAVAILABLE } from "../core/format.js";
 import { demoSnapshot } from "../core/demo.js";
 
 export const meta = { name: "SCOUT", role: "chain intelligence" };
@@ -28,23 +28,24 @@ export async function readout(): Promise<string[]> {
   const prev = readLastSnapshot();
   const signals = computeSignals({
     liquidityPairAsset: liquidity.liquidityPairAsset,
-    activeAddressesInWindow: holders.activeAddressesInWindow,
+    holderCount: holders.holderCount,
     buyCount: activity.buyCount,
     sellCount: activity.sellCount,
     prevLiquidityPairAsset: prev?.liquidityPair,
-    prevActiveAddresses: prev?.activeHolders,
+    prevHolderCount: prev?.holderCount,
   });
 
   writeSnapshot({
     timestamp: Date.now(),
     liquidityPair: liquidity.liquidityPairAsset,
-    activeHolders: holders.activeAddressesInWindow,
+    holderCount: holders.holderCount,
     buybackTotal: prev?.buybackTotal ?? null,
   });
 
   return [
-    `liquidity     ${fmtToken(liquidity.liquidityPairAsset, "ETH")}`,
-    `holders*      ${fmtNum(holders.activeAddressesInWindow)}  (*active in window, not lifetime)`,
+    `liquidity     ${liquidity.hasPool ? fmtToken(liquidity.liquidityPairAsset, "ETH") : DATA_UNAVAILABLE}`,
+    `holders       ${fmtNum(holders.holderCount)}${holders.isLifetime ? "" : "  (*windowed, launch record not found)"}`,
+    `curve         ${liquidity.graduated ? "graduated" : liquidity.hasPool ? `${liquidity.progressPercent?.toFixed(1)}% to graduation` : "n/a"}`,
     `24h activity  ${activity.buyCount} buys / ${activity.sellCount} sells`,
     ...signals.bullets.map((b) => `signal        ${b}`),
     `verdict       ${signals.verdict}`,

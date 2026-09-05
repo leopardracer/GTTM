@@ -5,9 +5,8 @@ import { readActivityStats } from "../chain/transactions.js";
 import { computeSignals } from "../core/signals.js";
 import { readLastSnapshot, writeSnapshot } from "../core/state.js";
 import { fmtToken, fmtNum, DATA_UNAVAILABLE } from "../core/format.js";
-import { header, label, dim, verdictColor } from "../ui/terminal.js";
+import { header, label, dim, verdictColor, demoBanner } from "../ui/terminal.js";
 import { demoSnapshot } from "../core/demo.js";
-import { demoBanner } from "../ui/terminal.js";
 
 export async function runScout() {
   console.log(header("SCOUT / ROBINHOOD CHAIN"));
@@ -37,25 +36,33 @@ export async function runScout() {
   const prev = readLastSnapshot();
   const signals = computeSignals({
     liquidityPairAsset: liquidity.liquidityPairAsset,
-    activeAddressesInWindow: holders.activeAddressesInWindow,
+    holderCount: holders.holderCount,
     buyCount: activity.buyCount,
     sellCount: activity.sellCount,
     prevLiquidityPairAsset: prev?.liquidityPair,
-    prevActiveAddresses: prev?.activeHolders,
+    prevHolderCount: prev?.holderCount,
   });
 
   writeSnapshot({
     timestamp: Date.now(),
     liquidityPair: liquidity.liquidityPairAsset,
-    activeHolders: holders.activeAddressesInWindow,
+    holderCount: holders.holderCount,
     buybackTotal: prev?.buybackTotal ?? null,
   });
 
   console.log(label("TOKEN", "$GTTM"));
   console.log(label("LIQUIDITY", liquidity.hasPool ? fmtToken(liquidity.liquidityPairAsset, "ETH") : DATA_UNAVAILABLE));
-  console.log(label("HOLDERS*", fmtNum(holders.activeAddressesInWindow)));
+  console.log(label("HOLDERS", fmtNum(holders.holderCount)));
+  if (!holders.isLifetime) {
+    console.log(dim("  * no Pons launch record found — this is a block-window count, not lifetime"));
+  }
   console.log(label("24H ACTIVITY", `${activity.buyCount} buys / ${activity.sellCount} sells`));
-  console.log(dim("  * active in window, not lifetime holder count"));
+  if (activity.unavailableReason) {
+    console.log(dim(`  ${activity.unavailableReason}`));
+  }
+  if (liquidity.hasPool && !liquidity.graduated) {
+    console.log(label("GRADUATION", `${liquidity.progressPercent?.toFixed(1)}% of ${liquidity.usdUnavailableReason ? "" : ""}threshold`));
+  }
   console.log();
   console.log(dim("RECENT SIGNALS"));
   for (const b of signals.bullets) console.log(`* ${b}`);

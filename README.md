@@ -23,10 +23,15 @@ v0.1 is a single-shot and polling terminal, not an autonomous system. The
 functions, dressed as a crew — see [Signal engine](#signal-engine) below for
 exactly what that means and doesn't mean.
 
+**v0.2** wires SCOUT and ABACUS directly into the real Pons V2 launchpad
+contracts on Robinhood Chain (factory, per-token bonding curve) — see [Pons
+V2 integration](#pons-v2-integration) for what that closes and what it
+doesn't.
+
 ![gttm mission](assets/screenshots/mission.png)
 
-*(HOLDERS is windowed activity, not a lifetime count — see [Known
-limitations](#known-limitations).)*
+*(HOLDERS is a real lifetime count when the token has a Pons V2 launch
+record; see [Known limitations](#known-limitations) for when it isn't.)*
 
 ## Features
 
@@ -60,6 +65,43 @@ Three agents are real chain-read functions with a crew-flavored name. Three
 are honestly-labeled placeholders reserved for later. `gttm crew <name>` says
 which is which — it doesn't pretend a placeholder has output it doesn't.
 
+## Pons V2 integration
+
+$GTTM launches through [Pons](https://www.ponsfamily.com/launchpad), Robinhood
+Chain's bonding-curve launchpad. v0.2 talks to the real Pons V2 contracts
+directly — addresses and event signatures below are sourced from
+[Bitquery's Pons documentation](https://docs.bitquery.io/docs/blockchain/robinhood/pons-api/),
+which states every topic0 was verified against the deployed contract source.
+They're not this project's own reverse-engineering:
+
+| Contract | Address | Used for |
+| --- | --- | --- |
+| `PonsV2LaunchFactory` | `0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e` | `TokenLaunched` → real deployer, curve address, graduation threshold |
+| Per-token bonding curve | one per token, from `TokenLaunched.curve` | `CurveBuy` / `CurveSell` → real pre-graduation price, volume, graduation progress |
+| `PonsV2MemeHook` / `PonsV2LaunchLocker` / v4 `PoolManager` | see `src/chain/pons.ts` | excluded from holder counts — they custody protocol balances, not real holders |
+
+This closes three of v0.1's stated gaps:
+
+- **Deployer** (`gttm scan`) — read directly from `TokenLaunched.deployer`, no
+  archive-node trace needed.
+- **Holder count** (`mission` / `scout` / `scan`) — scans from the token's
+  actual launch block instead of an arbitrary recent window, so it's a real
+  lifetime count, not a windowed guess. Protocol contracts are excluded (see
+  table above).
+- **Pre-graduation price/liquidity/activity** — read from the curve's own
+  `CurveBuy`/`CurveSell` events and its live quote-asset balance, instead of
+  reporting `DATA UNAVAILABLE` for every token that hasn't graduated yet.
+
+It also **surfaced** a gap that v0.1 didn't know about: post-graduation, a
+Pons token trades in a real Uniswap v4 pool, which has no per-pool contract
+with `getReserves()` the way v0.1 assumed — v4 pools live inside a shared
+`PoolManager` singleton keyed by `PoolId`. Reading a live price out of that
+needs a StateView/quoter call this toolkit doesn't implement yet. Rather than
+ship code that would silently fail (or worse, silently misread) against a
+real graduated pool, `gttm scout`/`scan`/`mission` report a graduated token's
+price/liquidity as unavailable with the reason stated — see [Known
+limitations](#known-limitations).
+
 ## Signal engine
 
 ![gttm scout](assets/screenshots/scout.png)
@@ -69,8 +111,8 @@ explicit rules, not a model:
 
 1. Liquidity trend vs. the last time you ran a command (cached locally in
    `.gttm-state.json`) — no history yet means this rule doesn't fire.
-2. Active-address-count trend, same basis.
-3. Buy/sell ratio in the scanned block window.
+2. Holder-count trend, same basis.
+3. Buy/sell ratio on the curve since launch.
 
 Confidence scales down when fewer rules had data to fire on. There is no
 hidden weighting and no claim of machine learning — this is v0.1's stated
@@ -97,7 +139,7 @@ cp .env.example .env
 | --------------------------- | :---------------------: | ----- |
 | `RPC_URL`                  | yes | from your own provider — see `docs.robinhood.com/chain` |
 | `GTTM_CONTRACT_ADDRESS`    | yes | leave empty to stay in demo mode |
-| `POOL_ADDRESS`             | for price/liquidity | only once the token has a Uniswap-v2-style pool (post pons-v2-graduation) |
+| `POOL_ADDRESS`             | no | reserved for a future post-graduation v4 reader — not used pre-graduation, that's auto-discovered (see [Pons V2 integration](#pons-v2-integration)) |
 | `BUYBACK_WALLET`           | for `treasury` | the public wallet from roadmap Phase 3 |
 | `NEXT_MILESTONE_USD`       | no | your own target, not fetched data |
 | `PAIR_ASSET_COINGECKO_ID`  | no | for USD conversion; degrades to `DATA UNAVAILABLE` if unset or unreachable |
@@ -127,12 +169,17 @@ gttm --version
 ```
 src/
   cli.ts              entry point (commander)
-  commands/           one file per CLI command
-  agents/             crew readouts — real for scout/abacus/wrench,
-                       honest placeholders for mouth/door/ears
-  chain/              viem client, token/liquidity/holder/activity reads
-  core/               config, signal engine, formatting, demo data, state cache
-  ui/                 terminal chrome, tables, progress bars
+  commands/            one file per CLI command
+  agents/              crew readouts — real for scout/abacus/wrench,
+                        honest placeholders for mouth/door/ears
+  chain/               viem client, token reads, and Pons V2 integration
+    pons.ts             real Pons V2 addresses + event ABIs (sourced, not guessed)
+    launch.ts           per-token launch record + bonding-curve state
+    liquidity.ts        price/liquidity — curve pre-graduation, gap post-graduation
+    holders.ts          real lifetime holder count from the launch block
+    transactions.ts     buy/sell activity from curve events + buyback tracking
+  core/                config, signal engine, formatting, demo data, state cache
+  ui/                  terminal chrome, tables, progress bars
 ```
 
 No unnecessary abstraction — a command calls chain functions directly and
@@ -143,19 +190,27 @@ around the same functions, not a second implementation.
 
 Stated plainly instead of hidden:
 
-- **HOLDERS is windowed, not lifetime.** Getting a true lifetime holder count
-  needs an indexer over full transfer history; this CLI scans a recent block
-  window (`SIGNAL_WINDOW_BLOCKS`) and reports *addresses active in that
-  window*, labeled with an asterisk everywhere it appears.
-- **DEPLOYER is not discoverable in v0.1.** Finding the real deployer needs
-  either an indexer or an archive-node trace of the creation transaction.
-  `gttm scan` says this outright rather than guessing.
-- **Pre-graduation pricing is not implemented.** If $GTTM is still on the
-  pons v2 bonding curve, price and liquidity follow the curve's own integer
-  math, not simple pool reserves. This repo doesn't hardcode a curve address
-  or ABI it can't verify — see `src/chain/pons-gap.ts` for exactly what's
-  missing and where to get it. `price`/`liquidity`-dependent fields report
-  `DATA UNAVAILABLE` until `POOL_ADDRESS` is set post-graduation.
+- **Post-graduation price/liquidity/activity isn't read yet.** Once a Pons
+  token graduates to its Uniswap v4 pool, reading a live price needs a
+  StateView/quoter contract call against the shared `PoolManager` singleton
+  (keyed by `PoolId`, not a per-pool address) — v0.1 assumed a simpler
+  per-pool contract that doesn't actually exist for v4. `gttm scout`/`scan`/
+  `mission` report `DATA UNAVAILABLE` with this reason for a graduated token
+  rather than guess. See [Pons V2 integration](#pons-v2-integration).
+- **ERC-20 quote-asset curves aren't priced yet.** Pons also supports USDG,
+  cbBTC, and tokenized stocks/ETFs as the quote asset. Curve liquidity
+  currently reads a direct ETH balance on the curve contract; a non-ETH quote
+  asset needs that token's own `balanceOf(curve)` instead, which isn't wired
+  up — `liquidityPairAsset` reports `null` with the reason stated in that
+  case, rather than assuming ETH.
+- **Holder count needs a real Pons launch record.** If the configured
+  address isn't a Pons V2 launch (or is a V1 launch, which used a different
+  factory and no bonding curve), holders/activity fall back to a recent
+  block-window scan instead of the token's real lifetime history, and the
+  output says so.
+- **DOOR and EARS are still placeholders.** Deployer-history lookups (DOOR)
+  and social-sentiment data (EARS) aren't implemented — see
+  [Roadmap](#roadmap).
 - **USD figures depend on an external price feed** (CoinGecko, no API key).
   If it's unreachable, USD numbers show `DATA UNAVAILABLE` and pair-asset
   (ETH) figures are shown instead — nothing is estimated silently.
@@ -181,7 +236,10 @@ without a rewrite:
 - Real LLM-powered agents behind the same crew interface
 - A social-sentiment source for EARS
 - Automated content generation for MOUTH
-- Wallet-intelligence and deployer-history lookups for DOOR/SCOUT
+- Deployer-history lookups for DOOR (how many prior launches an address has,
+  how many graduated) — the deployer's *address* is already real as of
+  v0.2, see [Pons V2 integration](#pons-v2-integration); the history isn't
+- Post-graduation v4 pool pricing (see [Known limitations](#known-limitations))
 - Telegram/Discord and X monitoring integrations
 - Agent-to-agent communication and a human-approval queue
 - A plugin system for third-party agents

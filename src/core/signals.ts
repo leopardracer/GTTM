@@ -2,11 +2,11 @@ import { trend } from "./state.js";
 
 export interface SignalInput {
   liquidityPairAsset: number | null;
-  activeAddressesInWindow: number | null;
+  holderCount: number | null;
   buyCount: number;
   sellCount: number;
   prevLiquidityPairAsset: number | null | undefined;
-  prevActiveAddresses: number | null | undefined;
+  prevHolderCount: number | null | undefined;
 }
 
 export interface SignalReport {
@@ -45,17 +45,17 @@ export function computeSignals(input: SignalInput): SignalReport {
   }
 
   // Rule 2: holder trend
-  const holderTrend = trend(input.activeAddressesInWindow, input.prevActiveAddresses);
+  const holderTrend = trend(input.holderCount, input.prevHolderCount);
   if (holderTrend) {
-    rulesApplied.push("active-address count vs. last run");
+    rulesApplied.push("holder count vs. last run");
     maxScore += 1;
     if (holderTrend === "up") {
-      bullets.push("active address count increasing");
+      bullets.push("holder count increasing");
       score += 1;
     } else if (holderTrend === "down") {
-      bullets.push("active address count decreasing");
+      bullets.push("holder count decreasing");
     } else {
-      bullets.push("active address count flat");
+      bullets.push("holder count flat");
       score += 0.5;
     }
   }

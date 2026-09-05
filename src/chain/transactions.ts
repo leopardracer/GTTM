@@ -1,7 +1,7 @@
 import { formatUnits } from "viem";
 import { getClient } from "./client.js";
 import { erc20Abi } from "./token.js";
-import { genericPoolAbi } from "./liquidity.js";
+import { readLaunchRecord, readCurveState } from "./launch.js";
 import { config } from "../core/config.js";
 
 export interface ActivityStats {
@@ -12,82 +12,57 @@ export interface ActivityStats {
   sellVolumePairAsset: number;
   windowFromBlock: bigint;
   windowToBlock: bigint;
+  unavailableReason?: string;
 }
 
 /**
- * Classifies pool Swap events as buy/sell relative to $GTTM: a swap where
- * the pair asset goes IN and $GTTM comes OUT is a buy, and vice versa.
- * Requires POOL_ADDRESS — pre-graduation curve trades aren't visible this
- * way (see chain/pons-gap.ts).
+ * Real buy/sell activity, sourced from the token's own Pons V2 bonding-curve
+ * CurveBuy/CurveSell events. Only covers pre-graduation activity — see
+ * chain/liquidity.ts for why post-graduation v4 pool activity isn't read
+ * here yet (no per-pool Swap event to filter on; needs the PoolManager's
+ * own event stream keyed by PoolId, which this toolkit doesn't decode yet).
  */
 export async function readActivityStats(): Promise<ActivityStats> {
-  const pool = config.poolAddress;
-  const latest = await getClient().getBlockNumber();
-  const windowBlocks = config.signalWindowBlocks;
-  const fromBlock = latest > windowBlocks ? latest - windowBlocks : 0n;
+  const client = getClient();
+  const latest = await client.getBlockNumber();
+  const tokenAddress = config.requireTokenAddress();
 
-  if (!pool) {
+  const launch = await readLaunchRecord(tokenAddress);
+  if (!launch.found) {
     return {
       hasPool: false,
       buyCount: 0,
       sellCount: 0,
       buyVolumePairAsset: 0,
       sellVolumePairAsset: 0,
-      windowFromBlock: fromBlock,
+      windowFromBlock: 0n,
       windowToBlock: latest,
+      unavailableReason: launch.reason,
     };
   }
 
-  const client = getClient();
-  const tokenAddress = config.requireTokenAddress();
-  const token0 = (await client.readContract({
-    address: pool,
-    abi: genericPoolAbi,
-    functionName: "token0",
-  })) as string;
-  const tokenIsToken0 = token0.toLowerCase() === tokenAddress.toLowerCase();
+  const curve = await readCurveState(launch);
 
-  const logs = await client.getLogs({
-    address: pool,
-    event: genericPoolAbi[3], // Swap
-    fromBlock,
-    toBlock: latest,
-  });
-
-  let buyCount = 0;
-  let sellCount = 0;
-  let buyVolumePairAsset = 0;
-  let sellVolumePairAsset = 0;
-
-  for (const log of logs) {
-    const { amount0In, amount1In, amount0Out, amount1Out } = log.args as {
-      amount0In: bigint;
-      amount1In: bigint;
-      amount0Out: bigint;
-      amount1Out: bigint;
+  if (curve.graduated) {
+    return {
+      hasPool: false,
+      buyCount: 0,
+      sellCount: 0,
+      buyVolumePairAsset: 0,
+      sellVolumePairAsset: 0,
+      windowFromBlock: launch.launchBlock,
+      windowToBlock: latest,
+      unavailableReason: "token has graduated — post-graduation v4 pool activity isn't read yet (see README)",
     };
-
-    const pairIn = tokenIsToken0 ? amount1In : amount0In;
-    const pairOut = tokenIsToken0 ? amount1Out : amount0Out;
-    const tokenOut = tokenIsToken0 ? amount0Out : amount1Out;
-    const tokenIn = tokenIsToken0 ? amount0In : amount1In;
-
-    if (pairIn > 0n && tokenOut > 0n) {
-      buyCount++;
-      buyVolumePairAsset += Number(formatUnits(pairIn, 18));
-    } else if (tokenIn > 0n && pairOut > 0n) {
-      sellCount++;
-      sellVolumePairAsset += Number(formatUnits(pairOut, 18));
-    }
   }
 
   return {
     hasPool: true,
-    buyCount,
-    sellCount,
-    buyVolumePairAsset,
-    sellVolumePairAsset,
-    windowFromBlock: fromBlock,
+    buyCount: curve.buyCount,
+    sellCount: curve.sellCount,
+    buyVolumePairAsset: curve.buyVolumePairAsset,
+    sellVolumePairAsset: curve.sellVolumePairAsset,
+    windowFromBlock: launch.launchBlock,
     windowToBlock: latest,
   };
 }

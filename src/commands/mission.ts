@@ -60,13 +60,13 @@ export async function runMission() {
     console.log(label("TOKEN", token.symbol ?? "$GTTM"));
     console.log();
     console.log(label("MARKET CAP", fmtUsd(marketCap)));
-    console.log(label("LIQUIDITY", liquidity.hasPool ? fmtUsd(liquidity.liquidityUsd) : DATA_UNAVAILABLE + " (no pool yet)"));
-    console.log(label("HOLDERS*", fmtNum(holders.activeAddressesInWindow) + dim("  (*active in window)")));
+    console.log(label("LIQUIDITY", liquidity.hasPool ? fmtUsd(liquidity.liquidityUsd) : DATA_UNAVAILABLE + (liquidity.graduated ? " (graduated, v4 pool read not implemented)" : " (no pool yet)")));
+    console.log(label("HOLDERS", fmtNum(holders.holderCount) + (holders.isLifetime ? "" : dim("  (*windowed, no launch record found)"))));
     console.log(
       label(
-        "VOLUME 24H",
+        "VOLUME",
         liquidity.hasPool
-          ? fmtToken(activity.buyVolumePairAsset + activity.sellVolumePairAsset, "ETH") + dim(" (window, not strictly 24h)")
+          ? fmtToken(activity.buyVolumePairAsset + activity.sellVolumePairAsset, "ETH") + dim(" (lifetime on curve, not 24h)")
           : DATA_UNAVAILABLE
       )
     );

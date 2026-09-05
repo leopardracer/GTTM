@@ -14,7 +14,7 @@ const program = new Command();
 program
   .name("gttm")
   .description("six agents. one human. one mission. the open-source mission terminal for $GTTM.")
-  .version("0.1.0");
+  .version("0.2.0");
 
 program.command("mission").description("mission control overview").action(runMission);
 
@@ -31,7 +31,8 @@ program.command("moon").description("mission progress toward the next milestone"
 program.command("doctor").description("diagnostics — config, RPC, chain, contract").action(runDoctor);
 
 program.parseAsync(process.argv).catch((err: any) => {
-  // Never a raw stack trace for a normal user.
-  console.error(`\n${err?.message ?? "something went wrong"}\n`);
+  // Never a raw stack trace or viem's full multi-line dump for a normal user.
+  const message = err?.shortMessage ?? err?.message ?? "something went wrong";
+  console.error(`\n${message}\n`);
   process.exit(1);
 });

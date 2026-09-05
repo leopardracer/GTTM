@@ -2,108 +2,111 @@ import { formatUnits } from "viem";
 import { getClient } from "./client.js";
 import { config } from "../core/config.js";
 import { getPairAssetUsdPrice } from "../core/price-feed.js";
-
-export const genericPoolAbi = [
-  {
-    type: "function",
-    name: "getReserves",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [
-      { name: "reserve0", type: "uint112" },
-      { name: "reserve1", type: "uint112" },
-      { name: "blockTimestampLast", type: "uint32" },
-    ],
-  },
-  {
-    type: "function",
-    name: "token0",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ type: "address" }],
-  },
-  {
-    type: "function",
-    name: "token1",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ type: "address" }],
-  },
-  {
-    type: "event",
-    name: "Swap",
-    inputs: [
-      { name: "sender", type: "address", indexed: true },
-      { name: "amount0In", type: "uint256", indexed: false },
-      { name: "amount1In", type: "uint256", indexed: false },
-      { name: "amount0Out", type: "uint256", indexed: false },
-      { name: "amount1Out", type: "uint256", indexed: false },
-      { name: "to", type: "address", indexed: true },
-    ],
-  },
-] as const;
+import { readLaunchRecord, readCurveState, type LaunchRecord } from "./launch.js";
+import { NATIVE_ETH } from "./pons.js";
 
 export interface LiquidityInfo {
   hasPool: boolean;
+  source: "curve" | "none";
   poolAddress?: `0x${string}`;
   tokenReserve: number | null;
   pairReserve: number | null;
   priceInPair: number | null;
-  liquidityPairAsset: number | null; // 2x pairReserve, the standard TVL convention
+  liquidityPairAsset: number | null;
   liquidityUsd: number | null;
+  graduated?: boolean;
+  progressPercent?: number;
   usdUnavailableReason?: string;
 }
 
 /**
- * Note on pons v2 pre-graduation: a token still on the bonding curve has no
- * pool matching this ABI, so this correctly reports hasPool: false rather
- * than guessing. Curve-based pricing is a documented gap — see
- * src/chain/pons-gap.ts.
+ * Real pre-graduation pricing off the token's own Pons V2 bonding curve —
+ * closes the gap that used to say DATA UNAVAILABLE. Post-graduation, a
+ * graduated Pons token trades in a real Uniswap v4 pool, which (unlike v2)
+ * has no per-pool contract with getReserves() — v4 pools live inside a
+ * shared PoolManager singleton keyed by PoolId, and reading a live price out
+ * of it needs either a StateView/quoter contract call or an indexer. That's
+ * genuinely not implemented here yet (see README's "Known limitations") —
+ * it's a different, harder problem than the curve was, not a shortcut we
+ * skipped.
  */
 export async function readLiquidity(): Promise<LiquidityInfo> {
-  const pool = config.poolAddress;
-  if (!pool) {
+  const tokenAddress = config.requireTokenAddress();
+
+  const launch = await readLaunchRecord(tokenAddress);
+  if (!launch.found) {
     return {
       hasPool: false,
+      source: "none",
       tokenReserve: null,
       pairReserve: null,
       priceInPair: null,
       liquidityPairAsset: null,
       liquidityUsd: null,
-      usdUnavailableReason: "no POOL_ADDRESS configured",
+      usdUnavailableReason: launch.reason,
     };
   }
 
-  const client = getClient();
-  const tokenAddress = config.requireTokenAddress();
+  const curve = await readCurveState(launch);
 
-  const [reserves, token0] = await Promise.all([
-    client.readContract({ address: pool, abi: genericPoolAbi, functionName: "getReserves" }),
-    client.readContract({ address: pool, abi: genericPoolAbi, functionName: "token0" }),
-  ]);
+  if (curve.graduated) {
+    return {
+      hasPool: false,
+      source: "none",
+      tokenReserve: null,
+      pairReserve: null,
+      priceInPair: curve.lastPriceInPair,
+      liquidityPairAsset: null,
+      liquidityUsd: null,
+      graduated: true,
+      progressPercent: 100,
+      usdUnavailableReason:
+        "token has graduated to a Uniswap v4 pool — reading v4 pool state needs a " +
+        "StateView/quoter call this toolkit doesn't implement yet (see README)",
+    };
+  }
 
-  const [reserve0, reserve1] = reserves as [bigint, bigint, number];
-  const tokenIsToken0 = (token0 as string).toLowerCase() === tokenAddress.toLowerCase();
-
-  const tokenReserveRaw = tokenIsToken0 ? reserve0 : reserve1;
-  const pairReserveRaw = tokenIsToken0 ? reserve1 : reserve0;
-
-  const tokenReserve = Number(formatUnits(tokenReserveRaw, config.tokenDecimals));
-  const pairReserve = Number(formatUnits(pairReserveRaw, 18));
-  const priceInPair = tokenReserve > 0 ? pairReserve / tokenReserve : null;
-  const liquidityPairAsset = pairReserve * 2;
+  // Still on the curve: the curve's own quote-asset balance IS the reserve
+  // backing it — a direct balance read, not a derived estimate.
+  let liquidityPairAsset: number | null = null;
+  if (launch.pairToken.toLowerCase() === NATIVE_ETH) {
+    const balance = await getClient().getBalance({ address: launch.curve });
+    liquidityPairAsset = Number(formatUnits(balance, 18));
+  }
+  // ERC-20 quote assets (USDG, cbBTC, tokenized stocks) would need that
+  // token's own balanceOf(curve) — not implemented for the non-ETH case yet,
+  // so liquidityPairAsset stays null rather than assuming ETH decimals apply.
 
   const usdPrice = await getPairAssetUsdPrice();
-  const liquidityUsd = usdPrice !== null ? liquidityPairAsset * usdPrice : null;
+  const liquidityUsd = liquidityPairAsset !== null && usdPrice !== null ? liquidityPairAsset * usdPrice : null;
 
   return {
     hasPool: true,
-    poolAddress: pool,
-    tokenReserve,
-    pairReserve,
-    priceInPair,
+    source: "curve",
+    poolAddress: launch.curve,
+    tokenReserve: null,
+    pairReserve: liquidityPairAsset,
+    priceInPair: curve.lastPriceInPair,
     liquidityPairAsset,
     liquidityUsd,
-    usdUnavailableReason: usdPrice === null ? "USD price feed unavailable" : undefined,
+    graduated: false,
+    progressPercent: curve.progressPercent,
+    usdUnavailableReason:
+      liquidityPairAsset === null
+        ? "pair asset is not native ETH — ERC-20 quote-asset balance reading isn't implemented yet"
+        : usdPrice === null
+        ? "USD price feed unavailable"
+        : undefined,
   };
+}
+
+export async function readLaunchAndCurve(): Promise<{
+  launch: LaunchRecord | null;
+  curve: Awaited<ReturnType<typeof readCurveState>> | null;
+}> {
+  const tokenAddress = config.requireTokenAddress();
+  const launch = await readLaunchRecord(tokenAddress);
+  if (!launch.found) return { launch: null, curve: null };
+  const curve = await readCurveState(launch);
+  return { launch, curve };
 }

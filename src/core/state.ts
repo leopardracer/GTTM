@@ -6,7 +6,7 @@ const STATE_PATH = path.join(process.cwd(), ".gttm-state.json");
 export interface Snapshot {
   timestamp: number;
   liquidityPair: number | null;
-  activeHolders: number | null;
+  holderCount: number | null;
   buybackTotal: number | null;
 }
 
